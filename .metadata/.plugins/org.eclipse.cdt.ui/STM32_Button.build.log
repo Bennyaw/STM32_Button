@@ -1,0 +1,6 @@
+22:27:28 **** Incremental Build of configuration Debug for project STM32_Button ****
+make all 
+make: Nothing to be done for 'all'.
+
+22:27:29 Build Finished (took 200ms)
+
