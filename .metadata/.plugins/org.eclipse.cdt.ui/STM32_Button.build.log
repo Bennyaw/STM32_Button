@@ -1,6 +1,23 @@
-22:27:28 **** Incremental Build of configuration Debug for project STM32_Button ****
+15:40:35 **** Incremental Build of configuration Debug for project STM32_Button ****
 make all 
-make: Nothing to be done for 'all'.
+Building file: ../Src/main.c
+Invoking: MCU GCC Compiler
+C:\Students\Bennyaw\STM32_Button\STM32_Button\Debug
+arm-none-eabi-gcc -mcpu=cortex-m4 -mthumb -mfloat-abi=hard -mfpu=fpv4-sp-d16 '-D__weak=__attribute__((weak))' '-D__packed=__attribute__((__packed__))' -DUSE_HAL_DRIVER -DSTM32F429xx -I"C:/Students/Bennyaw/STM32_Button/STM32_Button/Inc" -I"C:/Students/Bennyaw/STM32_Button/STM32_Button/Drivers/STM32F4xx_HAL_Driver/Inc" -I"C:/Students/Bennyaw/STM32_Button/STM32_Button/Drivers/STM32F4xx_HAL_Driver/Inc/Legacy" -I"C:/Students/Bennyaw/STM32_Button/STM32_Button/Drivers/CMSIS/Device/ST/STM32F4xx/Include" -I"C:/Students/Bennyaw/STM32_Button/STM32_Button/Drivers/CMSIS/Include"  -Og -g3 -Wall -fmessage-length=0 -ffunction-sections -c -fmessage-length=0 -MMD -MP -MF"Src/main.d" -MT"Src/main.o" -o "Src/main.o" "../Src/main.c"
+Finished building: ../Src/main.c
+ 
+Building target: STM32_Button.elf
+Invoking: MCU GCC Linker
+arm-none-eabi-gcc -mcpu=cortex-m4 -mthumb -mfloat-abi=hard -mfpu=fpv4-sp-d16 -specs=nosys.specs -specs=nano.specs -T"../STM32F429ZITx_FLASH.ld" -Wl,-Map=output.map -Wl,--gc-sections -o "STM32_Button.elf" @"objects.list"   -lm
+Finished building target: STM32_Button.elf
+ 
+make --no-print-directory post-build
+Generating hex and Printing size information:
+arm-none-eabi-objcopy -O ihex "STM32_Button.elf" "STM32_Button.hex"
+arm-none-eabi-size "STM32_Button.elf"
+   text	   data	    bss	    dec	    hex	filename
+   5204	     20	   1572	   6796	   1a8c	STM32_Button.elf
+ 
 
-22:27:29 Build Finished (took 200ms)
+15:40:36 Build Finished (took 1s.171ms)
 

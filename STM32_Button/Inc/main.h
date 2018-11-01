@@ -51,6 +51,8 @@
 
 #define Button_Pin GPIO_PIN_0
 #define Button_GPIO_Port GPIOA
+#define Led2_Pin GPIO_PIN_13
+#define Led2_GPIO_Port GPIOG
 #define Led_Pin GPIO_PIN_14
 #define Led_GPIO_Port GPIOG
 

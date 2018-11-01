@@ -61,6 +61,9 @@ static void MX_GPIO_Init(void);
 /* USER CODE END PFP */
 
 /* USER CODE BEGIN 0 */
+#define DEBOUNCING_PERIOD 5
+#define BLINKING_TIMER 500
+
 typedef enum ButtonState ButtonState;
 enum ButtonState{
 	BUTTON_RELEASED,
@@ -71,9 +74,9 @@ enum ButtonState{
 
 typedef struct Button Button;
 struct Button{
-	ButtonState buttonState;
+	ButtonState buttonState;//to keep the state of the button
 	int prevTick;
-	ButtonState state;
+	ButtonState state;//state machine for function handleButton
 };
 
 typedef enum LedState LedState;
@@ -88,6 +91,21 @@ struct LedButtonInfo
   LedState currentLedState;
   ButtonState previousButtonState;
 };
+
+typedef struct LedInfo LedInfo;//for led blink
+struct LedInfo
+{
+	LedState ledState;
+	uint32_t prevTick;
+};
+
+void varButtoninit(Button *button);
+void varStateinit(LedButtonInfo *state);
+ButtonState getButtonState(Button *button);
+void turnLed(LedState ledState);
+void handleButton(Button *button);
+void doTapTurnOnTapTurnOffLed(LedButtonInfo *state,Button *Button);
+void doBlinking(LedInfo *ledState);
 
 ButtonState getButtonState(Button *button)
 {
@@ -119,8 +137,7 @@ void handleButton(Button *button)
 			break;
 
 		case BUTTON_PRESSED_DEBOUNCING :
-			button->buttonState = BUTTON_RELEASED;
-			if(button->prevTick >= HAL_GetTick()+200)
+			if(HAL_GetTick() >= button->prevTick+DEBOUNCING_PERIOD)
 			{
 				if(HAL_GPIO_ReadPin(Button_GPIO_Port, Button_Pin))
 				{
@@ -129,6 +146,7 @@ void handleButton(Button *button)
 				}
 				else
 				{
+					button->state = BUTTON_RELEASED;
 					button->buttonState = BUTTON_RELEASED;
 				}
 			}
@@ -144,16 +162,16 @@ void handleButton(Button *button)
 			break;
 
 		case BUTTON_RELEASED_DEBOUNCING :
-			button->buttonState = BUTTON_PRESSED;
-			if(button->prevTick >= HAL_GetTick()+200)
+			if(HAL_GetTick() >= button->prevTick+DEBOUNCING_PERIOD)
 			{
-				if(HAL_GPIO_ReadPin(Button_GPIO_Port, Button_Pin))
+				if(!HAL_GPIO_ReadPin(Button_GPIO_Port, Button_Pin))
 				{
 					button->state = BUTTON_RELEASED;
 					button->buttonState = BUTTON_RELEASED;
 				}
 				else
 				{
+					button->state = BUTTON_PRESSED;
 					button->buttonState = BUTTON_PRESSED;
 				}
 			}
@@ -245,6 +263,40 @@ void varStateinit(LedButtonInfo *state)
 	state->currentLedState = LED_OFF;
 	state->previousButtonState = HAL_GPIO_ReadPin(Button_GPIO_Port, Button_Pin);
 }
+
+void ledInfo_Init(LedInfo *ledInfo)
+{
+	ledInfo->ledState = LED_OFF;
+	ledInfo->prevTick = HAL_GetTick();
+}
+
+void doBlinking(LedInfo *ledState)
+{
+
+	switch(ledState->ledState)
+	{
+		case LED_OFF :
+			if(HAL_GetTick() > ledState->prevTick + BLINKING_TIMER)
+			{
+				ledState->prevTick = HAL_GetTick();
+				ledState->ledState = LED_ON;
+				turnLed(LED_ON);
+			}
+			break;
+
+		case LED_ON :
+			if(HAL_GetTick() > ledState->prevTick + BLINKING_TIMER)
+			{
+				ledState->prevTick = HAL_GetTick();
+				ledState->ledState = LED_OFF;
+				turnLed(LED_OFF);
+			}
+			break;
+	}
+
+
+
+}
 /* USER CODE END 0 */
 
 /**
@@ -255,11 +307,13 @@ void varStateinit(LedButtonInfo *state)
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-	  LedButtonInfo *state;
-	  Button *Button;
+	  LedButtonInfo state;
+	  Button buttonInfo;
+	  LedInfo ledState;
 
-	  varButtoninit(Button);
-	  varStateinit(state);
+	  varButtoninit(&buttonInfo);
+	  varStateinit(&state);
+	  ledInfo_Init(&ledState);
   /* USER CODE END 1 */
 
   /* MCU Configuration----------------------------------------------------------*/
@@ -288,8 +342,9 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  doTapTurnOnTapTurnOffLed(state,Button);
-	  handleButton(Button);
+	  doTapTurnOnTapTurnOffLed(&state,&buttonInfo);
+	  handleButton(&buttonInfo);
+	  doBlinking(&ledState);
   /* USER CODE END WHILE */
 
   /* USER CODE BEGIN 3 */
@@ -313,15 +368,26 @@ void SystemClock_Config(void)
     */
   __HAL_RCC_PWR_CLK_ENABLE();
 
-  __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE3);
+  __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE1);
 
     /**Initializes the CPU, AHB and APB busses clocks 
     */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
-  RCC_OscInitStruct.HSIState = RCC_HSI_ON;
-  RCC_OscInitStruct.HSICalibrationValue = 16;
-  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_NONE;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+  RCC_OscInitStruct.HSEState = RCC_HSE_ON;
+  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
+  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
+  RCC_OscInitStruct.PLL.PLLM = 4;
+  RCC_OscInitStruct.PLL.PLLN = 180;
+  RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
+  RCC_OscInitStruct.PLL.PLLQ = 4;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
+  {
+    _Error_Handler(__FILE__, __LINE__);
+  }
+
+    /**Activate the Over-Drive mode 
+    */
+  if (HAL_PWREx_EnableOverDrive() != HAL_OK)
   {
     _Error_Handler(__FILE__, __LINE__);
   }
@@ -330,12 +396,12 @@ void SystemClock_Config(void)
     */
   RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
                               |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
-  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_HSI;
+  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
   RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
-  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
-  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
+  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV4;
+  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV2;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_0) != HAL_OK)
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_5) != HAL_OK)
   {
     _Error_Handler(__FILE__, __LINE__);
   }
